@@ -70,7 +70,7 @@ class RefreshView(TokenRefreshView):
     permission_classes = [AllowAny]
 
 
-class SectorViewSet(viewsets.ReadOnlyModelViewSet):
+class SectorViewSet(viewsets.ModelViewSet):
     queryset = Sector.objects.all()
     serializer_class = SectorSerializer
 
@@ -85,7 +85,7 @@ class SwitchViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SwitchSerializer
 
 
-class VLANViewSet(viewsets.ReadOnlyModelViewSet):
+class VLANViewSet(viewsets.ModelViewSet):
     queryset = VLAN.objects.all()
     serializer_class = VLANSerializer
 

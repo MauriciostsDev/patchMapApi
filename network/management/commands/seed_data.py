@@ -1,16 +1,13 @@
 """
 Popula o banco com os dados reais do PatchMap (SETHAS).
 
-Fonte: "Pontos sethas - Página1.pdf" — colunas SETOR | PATCH PANEL | ID DE
-CONEXÃO | SWITCH. Apenas linhas COMPLETAS (com setor preenchido) foram
-importadas: 209 conexões (as demais portas ficaram de fora).
+Fonte: "Pontos sethas - Página1.pdf" — apenas linhas COMPLETAS (com setor):
+209 conexões. Campos ausentes no PDF ficam nulos/vazios.
 
-Campos não presentes no PDF ficam vazios/nulos (sem dados fabricados):
-VLAN, dispositivo, MAC, IP, prédio/andar, modelo/IP do switch.
+Cada setor recebe uma COR distinta (paleta HSL) — editável depois pelo usuário.
+VLANs começam vazias: o usuário cria as VLANs e agrupa os setores no app.
 
-Idempotente: limpa as tabelas de topologia/conexões e recria. Mantém o admin.
-
-Uso: python manage.py seed_data
+Idempotente: limpa as tabelas e recria. Mantém o admin.
 """
 from datetime import date
 
@@ -21,34 +18,34 @@ from django.db import transaction
 
 from network.models import ConnectionPoint, PatchPanel, Sector, Switch, VLAN
 
-# (id, name, building, floor)
+# (id, name, building, floor, color)
 SECTORS = [
-    ('s1', 'FEAS', '', ''),
-    ('s2', 'COPAS', '', ''),
-    ('s3', 'EXPEDIENTE', '', ''),
-    ('s4', 'COEPI', '', ''),
-    ('s5', 'GSAD', '', ''),
-    ('s6', 'SUPI', '', ''),
-    ('s7', 'GAB', '', ''),
-    ('s8', 'UIAP', '', ''),
-    ('s9', 'COMIPI', '', ''),
-    ('s10', 'GAB RECEPCCAO', '', ''),
-    ('s11', 'UIAG', '', ''),
-    ('s12', 'SECRETÁRIA', '', ''),
-    ('s13', 'AUDITORIO', '', ''),
-    ('s14', 'COPLAN', '', ''),
-    ('s15', 'NUDIT', '', ''),
-    ('s16', 'COSAN SUPAE', '', ''),
-    ('s17', 'SUAS PSE', '', ''),
-    ('s18', 'DARK ROOM', '', ''),
-    ('s19', 'UCI', '', ''),
-    ('s20', 'ASSETI INFRA', '', ''),
-    ('s21', 'SUAS PSB', '', ''),
-    ('s22', 'COPES', '', ''),
-    ('s23', 'SUGEP', '', ''),
-    ('s24', 'COSAN SUPROG', '', ''),
-    ('s25', 'VIG', '', ''),
-    ('s26', 'ASSEJU', '', ''),
+    ('s1', 'FEAS', '', '', '#D14747'),
+    ('s2', 'COPAS', '', '', '#D16747'),
+    ('s3', 'EXPEDIENTE', '', '', '#D18647'),
+    ('s4', 'COEPI', '', '', '#D1A647'),
+    ('s5', 'GSAD', '', '', '#D1C647'),
+    ('s6', 'SUPI', '', '', '#BBD147'),
+    ('s7', 'GAB', '', '', '#9CD147'),
+    ('s8', 'UIAP', '', '', '#7CD147'),
+    ('s9', 'COMIPI', '', '', '#5CD147'),
+    ('s10', 'GAB RECEPCCAO', '', '', '#47D151'),
+    ('s11', 'UIAG', '', '', '#47D171'),
+    ('s12', 'SECRETÁRIA', '', '', '#47D191'),
+    ('s13', 'AUDITORIO', '', '', '#47D1B1'),
+    ('s14', 'COPLAN', '', '', '#47D1D1'),
+    ('s15', 'NUDIT', '', '', '#47B1D1'),
+    ('s16', 'COSAN SUPAE', '', '', '#4791D1'),
+    ('s17', 'SUAS PSE', '', '', '#4771D1'),
+    ('s18', 'DARK ROOM', '', '', '#4751D1'),
+    ('s19', 'UCI', '', '', '#5C47D1'),
+    ('s20', 'ASSETI INFRA', '', '', '#7C47D1'),
+    ('s21', 'SUAS PSB', '', '', '#9C47D1'),
+    ('s22', 'COPES', '', '', '#BB47D1'),
+    ('s23', 'SUGEP', '', '', '#D147C6'),
+    ('s24', 'COSAN SUPROG', '', '', '#D147A6'),
+    ('s25', 'VIG', '', '', '#D14786'),
+    ('s26', 'ASSEJU', '', '', '#D14767'),
 ]
 
 # (id, name, location, ports)
@@ -71,7 +68,7 @@ SWITCHES = [
     ('sw6', 'DIST-02-SW', '', '', 48, None),
 ]
 
-# Sem dados de VLAN no PDF.
+# Sem VLANs no PDF — o usuário cria e agrupa os setores no app.
 VLANS = []
 
 # (id, identifier, sector_id, pp_id, port, sw_id, switch_port,
@@ -294,15 +291,15 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        # Limpa dados antigos (mock) — conexões primeiro por causa dos FKs.
         ConnectionPoint.objects.all().delete()
         Sector.objects.all().delete()
         PatchPanel.objects.all().delete()
         Switch.objects.all().delete()
         VLAN.objects.all().delete()
 
-        for sid, name, building, floor in SECTORS:
-            Sector.objects.create(id=sid, name=name, building=building, floor=floor)
+        for sid, name, building, floor, color in SECTORS:
+            Sector.objects.create(id=sid, name=name, building=building,
+                                  floor=floor, color=color)
 
         for pid, name, location, ports in PATCH_PANELS:
             PatchPanel.objects.create(id=pid, name=name, location=location, ports=ports)
@@ -347,8 +344,7 @@ class Command(BaseCommand):
             defaults={'email': email, 'is_staff': True, 'is_superuser': True},
         )
         if created:
-            user.set_password(password)
-            user.save()
+            user.set_password(password); user.save()
             self.stdout.write(self.style.SUCCESS(f'Superusuário criado: {email}'))
         else:
             self.stdout.write(f'Superusuário já existe: {email}')

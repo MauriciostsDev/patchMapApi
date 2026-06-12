@@ -31,8 +31,15 @@ class DeviceType(models.TextChoices):
 class Sector(models.Model):
     id = models.CharField(max_length=32, primary_key=True)
     name = models.CharField(max_length=120)
-    building = models.CharField(max_length=120)
-    floor = models.CharField(max_length=60)
+    building = models.CharField(max_length=120, blank=True)
+    floor = models.CharField(max_length=60, blank=True)
+    # Cor própria do setor (hex, ex.: '#6366f1'), editável pelo usuário.
+    color = models.CharField(max_length=9, blank=True)
+    # VLAN à qual o setor pertence — a VLAN é o "grupo" de setores.
+    vlan = models.ForeignKey(
+        'VLAN', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='sectors',
+    )
 
     class Meta:
         ordering = ['id']
@@ -40,7 +47,7 @@ class Sector(models.Model):
         verbose_name_plural = 'Setores'
 
     def __str__(self):
-        return f'{self.name} ({self.building})'
+        return self.name
 
 
 class PatchPanel(models.Model):
