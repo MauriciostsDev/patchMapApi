@@ -1,0 +1,56 @@
+services:
+  # ───────────────────────────────────────────────────────────────────────────
+  # Backend: Django + DRF + JWT
+  # ───────────────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pathmapapi-backend
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - '8000:8000'
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-patchmap}:${POSTGRES_PASSWORD:-patchmap}@db:5432/${POSTGRES_DB:-patchmap}
+      - DJANGO_DEBUG=${DJANGO_DEBUG:-true}
+      # 10.0.2.2 = host da máquina visto de dentro do emulador Android
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,backend,10.0.2.2}
+      - CORS_ALLOW_ALL=${CORS_ALLOW_ALL:-true}
+      - SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL:-admin@patchmap.com}
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-123456}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - pathmapapi-network
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Database: PostgreSQL 16
+  # ───────────────────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: pathmapapi-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-patchmap}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-patchmap}
+      POSTGRES_DB: ${POSTGRES_DB:-patchmap}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-patchmap}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - pathmapapi-network
+
+networks:
+  pathmapapi-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
