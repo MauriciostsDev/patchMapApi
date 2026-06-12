@@ -23,7 +23,8 @@ SECRET_KEY = os.environ.get(
 DEBUG = env_bool('DJANGO_DEBUG', True)
 
 ALLOWED_HOSTS = os.environ.get(
-    'DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,backend'
+    # 10.0.2.2 é o alias do host da máquina visto de dentro do emulador Android.
+    'DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,backend,10.0.2.2'
 ).split(',')
 
 
