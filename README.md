@@ -56,8 +56,14 @@ Login → `{ token, refresh, user }`. Escrita exige header
 
 ## Seed
 
-`python manage.py seed_data` (idempotente) cria 10 setores, 7 patch panels,
-5 switches, 6 VLANs, 34 conexões e o admin `admin@patchmap.com / 123456`.
+`python manage.py seed_data` popula com os **dados reais (SETHAS)**, importados
+da planilha "Pontos sethas" (só linhas com setor preenchido): **26 setores,
+6 patch panels (A–F), 6 switches, 0 VLANs, 209 conexões** + admin
+`admin@patchmap.com / 123456`.
+
+É **idempotente e destrutivo p/ os dados**: limpa setores/painéis/switches/
+VLANs/conexões e recria a cada execução (o admin é preservado). Campos ausentes
+no PDF ficam nulos (VLAN, dispositivo, MAC, IP, prédio/andar, IP do switch).
 
 ## Estrutura
 
