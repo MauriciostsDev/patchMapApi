@@ -64,7 +64,7 @@ class Switch(models.Model):
     model = models.CharField(max_length=120)
     location = models.CharField(max_length=160)
     ports = models.PositiveIntegerField()
-    ip = models.GenericIPAddressField()
+    ip = models.GenericIPAddressField(null=True, blank=True)
 
     class Meta:
         ordering = ['id']
