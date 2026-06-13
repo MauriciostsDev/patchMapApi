@@ -1,23 +1,40 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PatchMap API — PRODUÇÃO (deploy na VM).
+#
+#   1. cp .env.example .env   e ajuste senha do banco, SECRET_KEY e ALLOWED_HOSTS
+#   2. docker compose up -d --build
+#   3. API em http://<ip-da-vm>:8000/  ·  Admin em /admin/
+#
+# Para desenvolvimento local (runserver + hot reload), use:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# ─────────────────────────────────────────────────────────────────────────────
 services:
   # ───────────────────────────────────────────────────────────────────────────
-  # Backend: Django + DRF + JWT
+  # Backend: Django + DRF + JWT (servido por Gunicorn)
   # ───────────────────────────────────────────────────────────────────────────
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: pathmapapi-backend
-    command: python manage.py runserver 0.0.0.0:8000
+    restart: unless-stopped
+    command: >
+      gunicorn config.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers ${GUNICORN_WORKERS:-3}
+      --timeout 60
+      --access-logfile -
     ports:
-      - '8000:8000'
-    volumes:
-      - .:/app
+      - '${BACKEND_PORT:-8000}:8000'
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-patchmap}:${POSTGRES_PASSWORD:-patchmap}@db:5432/${POSTGRES_DB:-patchmap}
-      - DJANGO_DEBUG=${DJANGO_DEBUG:-true}
-      # 10.0.2.2 = host da máquina visto de dentro do emulador Android
+      - DJANGO_DEBUG=${DJANGO_DEBUG:-false}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-dev-insecure-key-change-me-in-production}
       - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,backend,10.0.2.2}
+      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS:-}
       - CORS_ALLOW_ALL=${CORS_ALLOW_ALL:-true}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+      - SECURE_SSL=${SECURE_SSL:-false}
       - SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL:-admin@patchmap.com}
       - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-123456}
     depends_on:
@@ -27,17 +44,16 @@ services:
       - pathmapapi-network
 
   # ───────────────────────────────────────────────────────────────────────────
-  # Database: PostgreSQL 16
+  # Database: PostgreSQL 16 (sem porta exposta ao host em produção)
   # ───────────────────────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
     container_name: pathmapapi-db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-patchmap}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-patchmap}
       POSTGRES_DB: ${POSTGRES_DB:-patchmap}
-    ports:
-      - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:

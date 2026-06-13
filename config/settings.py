@@ -20,12 +20,22 @@ SECRET_KEY = os.environ.get(
     'dev-insecure-key-change-me-in-production',
 )
 
-DEBUG = env_bool('DJANGO_DEBUG', True)
+# Produção é o padrão (DEBUG=False). Em dev, defina DJANGO_DEBUG=true.
+DEBUG = env_bool('DJANGO_DEBUG', False)
 
-ALLOWED_HOSTS = os.environ.get(
-    # 10.0.2.2 é o alias do host da máquina visto de dentro do emulador Android.
-    'DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,backend,10.0.2.2'
-).split(',')
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get(
+        # 10.0.2.2 é o alias do host da máquina visto de dentro do emulador Android.
+        # Em produção, defina o domínio/IP da VM em DJANGO_ALLOWED_HOSTS.
+        'DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,backend,10.0.2.2'
+    ).split(',') if h.strip()
+]
+
+# Domínios confiáveis para CSRF (admin atrás de proxy HTTPS). Ex.:
+# CSRF_TRUSTED_ORIGINS=https://api.seu-dominio.com
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()
+]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -48,6 +58,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise serve os estáticos do admin sem precisar de Nginx para isso.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -121,6 +133,14 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# WhiteNoise: comprime e versiona os estáticos (admin/DRF) servidos pelo Django.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
@@ -157,3 +177,29 @@ CORS_ALLOWED_ORIGINS = [
 # Credenciais do superusuário semeado automaticamente (ver management/commands/seed_data)
 SEED_ADMIN_EMAIL = os.environ.get('SEED_ADMIN_EMAIL', 'admin@patchmap.com')
 SEED_ADMIN_PASSWORD = os.environ.get('SEED_ADMIN_PASSWORD', '123456')
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Segurança de produção (ativada quando DEBUG=False)
+# ─────────────────────────────────────────────────────────────────────────────
+if not DEBUG:
+    # Confia no header do reverse proxy (Nginx/Traefik) para detectar HTTPS.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    # Redireciona p/ HTTPS e marca cookies como secure SOMENTE se houver TLS na
+    # frente (defina SECURE_SSL=true no .env quando o proxy servir HTTPS).
+    SECURE_SSL = env_bool('SECURE_SSL', False)
+    SECURE_SSL_REDIRECT = SECURE_SSL
+    SESSION_COOKIE_SECURE = SECURE_SSL
+    CSRF_COOKIE_SECURE = SECURE_SSL
+    SECURE_HSTS_SECONDS = 31536000 if SECURE_SSL else 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_SSL
+    SECURE_HSTS_PRELOAD = SECURE_SSL
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+
+    if SECRET_KEY == 'dev-insecure-key-change-me-in-production':
+        import warnings
+        warnings.warn(
+            'DJANGO_SECRET_KEY não definida em produção! '
+            'Defina uma chave forte no .env antes de expor a API.'
+        )

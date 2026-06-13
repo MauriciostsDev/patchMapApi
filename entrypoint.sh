@@ -24,11 +24,18 @@ PY
 fi
 
 echo "Aplicando migrations..."
-python manage.py makemigrations network --noinput
 python manage.py migrate --noinput
 
-echo "Rodando seed..."
-python manage.py seed_data
+# Seed só roda no primeiro boot (idempotente, mas é destrutivo p/ os dados).
+# Para semear manualmente: docker compose exec backend python manage.py seed_data
+if [ "${RUN_SEED:-auto}" = "always" ]; then
+  echo "Rodando seed (RUN_SEED=always)..."
+  python manage.py seed_data
+elif [ "${RUN_SEED:-auto}" = "auto" ]; then
+  python manage.py shell -c "import sys; from network.models import ConnectionPoint; sys.exit(0 if ConnectionPoint.objects.exists() else 1)" \
+    && echo "Banco já populado; pulando seed." \
+    || { echo "Banco vazio; rodando seed inicial..."; python manage.py seed_data; }
+fi
 
 echo "Coletando estáticos..."
 python manage.py collectstatic --noinput || true

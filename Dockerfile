@@ -22,4 +22,5 @@ RUN chmod +x ./entrypoint.sh
 EXPOSE 8000
 
 ENTRYPOINT ["bash", "./entrypoint.sh"]
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Default de produção; o docker-compose.dev.yml troca por runserver em dev.
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60", "--access-logfile", "-"]

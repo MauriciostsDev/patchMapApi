@@ -1,0 +1,19 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PatchMap API — overrides de DESENVOLVIMENTO.
+#
+# Uso:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Diferenças do produção: runserver com hot reload, código montado por volume,
+# DEBUG ligado e porta do Postgres exposta ao host (para inspeção).
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  backend:
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      - DJANGO_DEBUG=true
+    volumes:
+      - .:/app
+
+  db:
+    ports:
+      - '5432:5432'
